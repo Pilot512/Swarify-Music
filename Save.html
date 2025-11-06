@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Saved Songs</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #071028;
+      color: #eaf2f8;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 20px;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    li{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0e1726;
+      padding: 12px;
+      margin-bottom: 10px;
+      border-radius: 10px;
+      font-size: 1rem;
+      word-break: break-word;
+    }
+
+    button {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 8px;
+      background: #6ee7b7;
+      color: #042018;
+      font-weight: bold;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 480px) {
+      h1 {
+        font-size: 1.5rem;
+      }
+      li {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      button {
+        margin-top: 6px;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>🎵 Saved Songs</h1>
+  <ul id="savedSongsList"></ul>
+
+  <script>
+    let songs = JSON.parse(localStorage.getItem("savedSongs")) || [];
+    let list = document.getElementById("savedSongsList");
+
+    if (songs.length === 0) {
+      list.innerHTML = "<li>No saved songs found</li>";
+    } else {
+      songs.forEach(song => {
+        let li = document.createElement("li");
+        li.textContent = song.title;
+
+        let playBtn = document.createElement("button");
+        playBtn.textContent = "▶ Play";
+        playBtn.onclick = () => {
+          window.open("https://www.youtube.com/watch?v=" + song.id, "_blank");
+        };
+
+        li.appendChild(playBtn);
+        list.appendChild(li);
+      });
+    }
+  </script>
+</body>
+</html>

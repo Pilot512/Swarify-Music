@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Swarify</title>
+  <meta name="description" content="Responsive Spotify-like music web UI with player controls, playlist, search and PWA manifest (demo)." />
+  <link rel="manifest" href="manifest.json">
+  <style>
+    :root{
+      --bg: #0b0f12;
+      --card: linear-gradient(180deg,#121416 0%, #0f1316 100%);
+      --accent: #1db954;
+      --muted: #9aa3a6;
+      --glass: rgba(255,255,255,0.04);
+      --glass-2: rgba(255,255,255,0.03);
+      --radius: 16px;
+      --max-width: 1100px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+      background: radial-gradient(circle at 10% 10%, rgba(29,185,84,0.06), transparent 8%), var(--bg);
+      color: #e6eef0;
+      min-height:100vh;
+      display:flex;
+      align-items:stretch;
+      justify-content:center;
+      padding:20px;
+    }
+
+    .app{
+      width:100%;
+      max-width:var(--max-width);
+      display:grid;
+      grid-template-columns:260px 1fr;
+      gap:20px;
+      height:calc(100vh - 40px);
+    }
+
+    .sidebar{
+      background:var(--card);
+      border-radius:var(--radius);
+      padding:18px;
+      display:flex;
+      flex-direction:column;
+      gap:18px;
+      min-height:0;
+      overflow:auto;
+    }
+    .logo{display:flex;align-items:center;gap:12px;font-weight:700}
+    .logo .badge{width:40px;height:40px;background:linear-gradient(135deg,#2bd06b,#1db954);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#04220b}
+    nav{display:flex;flex-direction:column;gap:8px}
+    .nav-item{display:flex;gap:12px;align-items:center;padding:10px;border-radius:10px;cursor:pointer;color:var(--muted)}
+    .nav-item.active{background:var(--glass);color:var(--accent)}
+    .playlists{margin-top:auto}
+
+    .main{
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+      border-radius:var(--radius);
+      padding:20px;
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+      overflow:auto;
+    }
+
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+    .search{display:flex;gap:10px;align-items:center;background:var(--glass);padding:10px;border-radius:12px;width:100%;max-width:420px}
+    .search input{background:transparent;border:none;outline:none;color:inherit;font-size:15px;width:100%}
+
+    .hero{display:flex;gap:18px;align-items:center;margin-bottom:18px}
+    .hero .cover{width:120px;height:120px;border-radius:12px;background:linear-gradient(135deg,#333,#222);display:flex;align-items:center;justify-content:center;font-size:30px}
+    .hero .meta h2{margin:0 0 6px 0}
+    .hero .meta p{margin:0;color:var(--muted)}
+
+    .tracks{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .track{display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;background:var(--glass-2);cursor:pointer}
+    .track:hover{background:var(--glass)}
+    .track .num{width:36px;text-align:center;color:var(--muted)}
+    .track .title{flex:1}
+    .track .title .name{font-weight:600}
+    .track .title .artist{font-size:13px;color:var(--muted)}
+    .track .duration{width:48px;text-align:right;color:var(--muted)}
+
+    .controls{display:flex;gap:10px;align-items:center}
+
+    .player{
+      position:fixed;
+      left:50%;transform:translateX(-50%);
+      bottom:18px;
+      width:calc(100% - 40px);
+      max-width:var(--max-width);
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:14px;
+      padding:12px 16px;
+      display:flex;align-items:center;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,0.6)
+    }
+    .player .now{display:flex;gap:12px;align-items:center;min-width:0}
+    .now .cover{width:56px;height:56px;border-radius:8px;background:#222;display:flex;align-items:center;justify-content:center;font-weight:700}
+    .now .meta{min-width:0}
+    .now .meta .song{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .now .meta .artist{font-size:13px;color:var(--muted)}
+    .player .center{flex:1;display:flex;flex-direction:column;gap:8px;align-items:center}
+    .player .buttons{display:flex;gap:8px;align-items:center}
+    .btn{background:transparent;border:none;color:inherit;padding:6px;border-radius:8px;cursor:pointer}
+    .play-btn{width:44px;height:44px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#04220b;font-weight:700}
+    .progress{width:100%;height:6px;border-radius:6px;background:rgba(255,255,255,0.06);overflow:hidden}
+    .progress > .bar{height:100%;width:0%;background:linear-gradient(90deg, #2bd06b, var(--accent))}
+
+    @media (max-width:900px){
+      .app{grid-template-columns:1fr;grid-template-rows:auto 1fr;padding-bottom:80px}
+      .sidebar{order:2;display:flex;flex-direction:row;gap:8px;padding:10px;overflow:auto;border-radius:12px}
+      .main{order:1;padding:14px}
+      .tracks{grid-template-columns:1fr}
+      .hero .cover{width:84px;height:84px}
+      .player{left:50%;transform:translateX(-50%);width:calc(100% - 28px);padding:10px}
+    }
+    @media (max-width:420px){
+      .logo .badge{width:36px;height:36px}
+      .player .now .cover{width:44px;height:44px}
+      .now .meta .song{font-size:13px}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo">
+        <div class="badge">
+          <img src="icon.png" class="badge">
+        </div>
+        <div>
+          <div>Swarify</div>
+          <div style="font-size:12px;color:var(--muted)">Music • Demo</div>
+        </div>
+      </div>
+      <nav>
+        <div class="nav-item active">Home</div>
+        <div class="nav-item" onclick="find_music()">Browse</div>
+        <div class="nav-item" onclick="Local()">Your Library</div>
+        <div class="nav-item" onclick="Save()">Saved playlist</div>
+      </nav>
+      <div class="playlists">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:6px">Playlists</div>
+        <div class="nav-item">Top Hits</div>
+        <div class="nav-item">Chill</div>
+        <div class="nav-item">Workout</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div style="display:flex;gap:12px;align-items:center;flex:1">
+          <div style="font-weight:700;font-size:18px" id="greeting">Good</div>
+          <div style="color:var(--muted)"></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <div class="search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.5"></circle></svg>
+            <input id="searchInput" placeholder="Search songs, artists, albums..." />
+          </div>
+          <label style="background:var(--glass);padding:8px 12px;border-radius:12px;cursor:pointer;font-size:14px">
+            + Add Music
+            <input type="file" id="fileInput" accept="audio/*" style="display:none" multiple />
+          </label>
+        </div>
+      </div>
+
+      <section class="hero">
+        <div class="cover">🎵</div>
+        <div class="meta">
+          <h2>Daily Mix — Swarify</h2>
+          <p>Curated songs for your mood</p>
+        </div>
+      </section>
+
+      <section>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <h3 style="margin:0">Tracks</h3>
+          <div style="color:var(--muted);font-size:13px">Total: <span id="totalCount">0</span></div>
+        </div>
+        <div id="tracks" class="tracks"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="player">
+    <div class="now">
+      <div class="cover" id="nowCover">🎵</div>
+      <div class="meta">
+        <div class="song" id="nowTitle">Nothing Playing</div>
+        <div class="artist" id="nowArtist">—</div>
+      </div>
+    </div>
+    <div class="center">
+      <div class="buttons">
+        <button class="btn" id="prevBtn">⏮</button>
+        <button class="play-btn" id="playBtn">▶</button>
+        <button class="btn" id="nextBtn">⏭</button>
+        <button class="btn" id="shuffleBtn">🔀</button>
+        <button class="btn" id="repeatBtn">🔁</button>
+      </div>
+      <div class="progress">
+        <div class="bar" id="progressBar"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <div id="currentTime" style="font-size:13px;color:var(--muted)">0:00</div>
+      <div id="duration" style="font-size:13px;color:var(--muted)">0:00</div>
+    </div>
+  </div>
+
+  <audio id="audio" preload="metadata"></audio>
+
+  <script>
+    // Demo playlist (remote URLs or relative file paths). Remote URLs and relative paths can be persisted to localStorage.
+    const demo = [
+      {id: 'd1', title:'Sunrise', artist:'A. Nova', src:'tracks/sunrise.mp3', duration: '3:18'},
+      {id: 'd2', title:'Midnight Drive', artist:'Skyline', src:'tracks/midnight_drive.mp3', duration: '4:02'}
+    ];
+
+    // App state
+    let playlist = [];
+    let sessionFiles = []; // files added from file input (object URLs) — NOT persisted across reload
+
+    const tracksEl = document.getElementById('tracks');
+    const totalCount = document.getElementById('totalCount');
+    const searchInput = document.getElementById('searchInput');
+    const fileInput = document.getElementById('fileInput');
+
+    const audio = document.getElementById('audio');
+    const playBtn = document.getElementById('playBtn');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const progressBar = document.getElementById('progressBar');
+    const nowTitle = document.getElementById('nowTitle');
+    const nowArtist = document.getElementById('nowArtist');
+    const nowCover = document.getElementById('nowCover');
+    const currentTimeEl = document.getElementById('currentTime');
+    const durationEl = document.getElementById('duration');
+
+    let currentIndex = 0;
+    let isPlaying = false;
+    let shuffle = false;
+    let repeat = false;
+
+    function formatTime(sec){
+      if (!sec || isNaN(sec)) return '0:00';
+      const m = Math.floor(sec/60);
+      const s = Math.floor(sec%60).toString().padStart(2,'0');
+      return `${m}:${s}`;
+    }
+    function savePersistent(){
+      // only save items that have persistent src (http(s) or relative path). Skip object URLs.
+      const toSave = playlist.filter(p=> !p._isObject).map(p=> ({id:p.id,title:p.title,artist:p.artist,src:p.src,duration:p.duration}));
+      try{ localStorage.setItem('Pulse Music_playlist', JSON.stringify(toSave)); }catch(e){console.warn('Storage failed',e)}
+    }
+
+    function Save(){
+      window.location="Save.html";
+    }
+    function Local(){
+      window.location="Local-File.html";
+    }
+    function find_music(){
+      window.location="Search-music.html";
+    }
+    function loadPersistent(){
+      try{
+        const raw = localStorage.getItem('Pulse Music Music_playlist');
+        if (!raw) return [];
+        return JSON.parse(raw);
+      }catch(e){return []}
+    }
+    function renderList(list){
+      tracksEl.innerHTML = '';
+      list.forEach((t, idx) => {
+        const el = document.createElement('div');
+        el.className = 'track';
+        el.innerHTML = `
+          <div class="num">${idx+1}</div>
+          <div class="title">
+            <div class="name">${t.title}</div>
+            <div class="artist">${t.artist || 'Unknown'}</div>
+          </div>
+          <div class="duration">${t.duration || '0:00'}</div>
+        `;
+        el.addEventListener('click', ()=>{
+          currentIndex = playlist.findIndex(p=>p.id===t.id);
+          loadTrack(currentIndex);
+          playTrack();
+        });
+        tracksEl.appendChild(el);
+      });
+      totalCount.textContent = list.length;
+    }
+
+    function loadTrack(index){
+      const t = playlist[index];
+      if (!t) return;
+      audio.src = t.src;
+      nowTitle.textContent = t.title;
+      nowArtist.textContent = t.artist || 'Unknown';
+      nowCover.textContent = (t.title && t.title.charAt(0)) || '♪';
+      durationEl.textContent = t.duration || '0:00';
+    }
+
+    function playTrack(){
+      audio.play().then(()=>{
+        isPlaying = true;
+        playBtn.textContent = '❚❚';
+      }).catch(err=>{
+        console.warn('Playback failed — user gesture required or invalid src', err);
+      });
+    }
+    function pauseTrack(){
+      audio.pause();
+      isPlaying = false;
+      playBtn.textContent = '▶';
+    }
+
+    playBtn.addEventListener('click', ()=>{
+      if (!audio.src) loadTrack(currentIndex);
+      if (isPlaying) pauseTrack(); else playTrack();
+    });
+    prevBtn.addEventListener('click', ()=>{
+      if (audio.currentTime>3) { audio.currentTime = 0; return; }
+      currentIndex = (currentIndex-1 + playlist.length) % playlist.length;
+      loadTrack(currentIndex);
+      playTrack();
+    });
+    nextBtn.addEventListener('click', ()=>{
+      if (shuffle){
+        currentIndex = Math.floor(Math.random()*playlist.length);
+      } else {
+        currentIndex = (currentIndex+1) % playlist.length;
+      }
+      loadTrack(currentIndex);
+      playTrack();
+    });
+
+    document.getElementById('shuffleBtn').addEventListener('click', (e)=>{
+      shuffle = !shuffle;
+      e.currentTarget.style.opacity = shuffle ? '1' : '0.7';
+    });
+    document.getElementById('repeatBtn').addEventListener('click', (e)=>{
+      repeat = !repeat;
+      e.currentTarget.style.opacity = repeat ? '1' : '0.7';
+      audio.loop = repeat;
+    });
+
+    audio.addEventListener('timeupdate', ()=>{
+      const pct = (audio.currentTime / audio.duration) * 100 || 0;
+      progressBar.style.width = pct + '%';
+      currentTimeEl.textContent = formatTime(audio.currentTime);
+      durationEl.textContent = formatTime(audio.duration);
+    });
+
+    audio.addEventListener('ended', ()=>{
+      if (repeat) { audio.currentTime = 0; playTrack(); return; }
+      if (shuffle){
+        currentIndex = Math.floor(Math.random()*playlist.length);
+      } else {
+        currentIndex = (currentIndex+1) % playlist.length;
+      }
+      loadTrack(currentIndex);
+      playTrack();
+    });
+
+    // Search / filter
+    function filter(q){
+      const s = q.trim().toLowerCase();
+      if (!s) { renderList(playlist); return }
+      const filtered = playlist.filter(t=> ((t.title||'') + ' ' + (t.artist||'')).toLowerCase().includes(s));
+      renderList(filtered);
+    }
+    searchInput.addEventListener('input', (e)=> filter(e.target.value));
+
+    // Add music via file input (local files)
+    fileInput.addEventListener('change', async (e)=>{
+      const files = Array.from(e.target.files || []);
+      for (const f of files){
+        try{
+          const url = URL.createObjectURL(f);
+          // get duration and basic metadata using a temporary audio element
+          const meta = await getFileMeta(url);
+          const id = 'f_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+          const track = {id, title: f.name.replace(/\.[^.]+$/, ''), artist:'Local', src: url, duration: meta.duration, _isObject: true};
+          playlist.push(track);
+          sessionFiles.push({id, url});
+          renderList(playlist);
+        }catch(err){console.error('file add failed',err)}
+      }
+      // clear input so same file can be added again if needed
+      fileInput.value = '';
+    });
+
+    function getFileMeta(url){
+      return new Promise((res, rej)=>{
+        const a = document.createElement('audio');
+        a.src = url;
+        a.addEventListener('loadedmetadata', ()=>{
+          res({duration: formatTime(a.duration)});
+        });
+        a.addEventListener('error', (e)=> rej(e));
+      });
+    }
+
+    // Init: load demo + persisted remote tracks
+    function init(){
+      const persisted = loadPersistent();
+      playlist = [...demo, ...persisted];
+      renderList(playlist);
+    }
+
+    // Save when page unloads (only persistent ones). For session object URLs, they cannot be saved.
+    window.addEventListener('beforeunload', ()=>{
+      savePersistent();
+      // revoke object URLs
+      sessionFiles.forEach(f=> URL.revokeObjectURL(f.url));
+    });
+
+    // keyboard
+    window.addEventListener('keydown', (e)=>{
+      if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT'){
+        e.preventDefault();
+        if (isPlaying) pauseTrack(); else playTrack();
+      }
+      if (e.code === 'ArrowRight') nextBtn.click();
+      if (e.code === 'ArrowLeft') prevBtn.click();
+    });
+    init();
+// auto wising 
+function showGreeting() {
+      const now = new Date();
+      const hour = now.getHours();
+      const greetingEl = document.getElementById('greeting');
+      let greetingText = '';
+
+      if (hour >= 5 && hour < 12) {
+        greetingText = 'Good Morning';
+      } else if (hour >= 12 && hour < 16) {
+        greetingText = 'Good Afternoon';
+      } else if (hour >= 16 && hour < 20) {
+        greetingText = 'Good Evening';
+      } else {
+        greetingText = 'Good Night';
+      }
+
+      greetingEl.textContent = greetingText;
+    }
+
+    // Call the function on page load
+    showGreeting();
+ </script>
+</body>
+</html>

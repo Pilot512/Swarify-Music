@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="hi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Music Search </title>
+  <style>
+    :root{
+      --bg:#071028;--card:#0e1726;--muted:#aab3c0;--accent:#6ee7b7;
+      --max-width:1100px;--gap:14px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;
+      background:linear-gradient(180deg,#071029,#051428);
+      color:#eaf2f8;min-height:100vh;
+      padding:20px;
+      display:flex;justify-content:center;
+    }
+    .wrap{width:100%;max-width:var(--max-width);display:flex;flex-direction:column;gap:var(--gap)}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    h1{margin:0;font-size:22px}
+    .searchbar{display:flex;gap:8px;margin-top:6px}
+    input.search{
+      flex:1;padding:12px;border-radius:10px;
+      border:1px solid rgba(255,255,255,0.04);
+      background:rgba(255,255,255,0.02);
+      color:inherit;font-size:15px
+    }
+    button.btn{
+      padding:10px 16px;border-radius:10px;border:0;
+      background:linear-gradient(90deg,var(--accent),#34d399);
+      color:#042018;cursor:pointer;font-weight:700
+    }
+    #status{margin-top:6px;color:var(--muted)}
+    .results{
+      margin-top:12px;
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+      gap:var(--gap)
+    }
+    .card{
+      background:var(--card);padding:12px;border-radius:10px;
+      display:flex;gap:10px;align-items:center;
+      border:1px solid rgba(255,255,255,0.03);
+      transition:transform .2s ease,box-shadow .2s ease;
+    }
+    .card:hover{transform:translateY(-4px);box-shadow:0 6px 16px rgba(0,0,0,0.4)}
+    .thumb{width:90px;height:60px;flex:0 0 90px;border-radius:6px;overflow:hidden;background:#000}
+    .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .meta{flex:1}
+    .title{margin:0;font-size:14px}
+    .sub{font-size:12px;color:var(--muted);margin-top:6px}
+    .playbtn{
+      padding:8px 10px;border-radius:8px;border:0;
+      background:transparent;color:var(--accent);
+      cursor:pointer;font-weight:700
+    }
+    #player{
+      margin-top:16px;background:#000;border-radius:8px;
+      overflow:hidden;display:none;
+      aspect-ratio:16/9; 
+    }
+    #player iframe{width:100%;height:100%;border:0}
+    .empty{
+      text-align:center;color:var(--muted);padding:20px;
+      border-radius:8px;border:1px dashed rgba(255,255,255,0.03)
+    }
+
+    @media (max-width:640px){
+      body{padding:12px}
+      h1{font-size:18px}
+      .searchbar{flex-direction:column}
+      button.btn{width:100%}
+      .thumb{width:120px;height:80px}
+    }
+    @media (min-width:641px) and (max-width:1024px){
+      h1{font-size:20px}
+      .results{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+    }
+    @media (min-width:1025px){
+      .results{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+    }
+   
+.mp_bgpage_wrapper {
+  margin: 0;
+  min-height: 100vh;
+  position: relative;
+  font-family: Arial, sans-serif;
+}
+
+
+.mp_bgpage_image {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100% auto;
+  height: 100% auto;
+  object-fit: cover;
+  z-index: -100;
+
+}
+
+.mp_,bgpage_content {
+  position: relative;
+  z-index: 100;
+  color: white;
+  padding: 20px;
+  max-width: 90%;
+  margin: 0 auto;
+  text-align: center;
+}
+  </style>
+</head>
+<body>
+  
+  <div class="mp_bgpage_wrapper">
+  <img src="icon.png" alt="Background" class="mp_bgpage_image">
+</div>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Music Search (Swarify)</h1>
+        <div style="color:var(--muted);font-size:13px"></div>
+      </div>
+    </header>
+
+    <div class="searchbar">
+      <input id="query" class="search" placeholder="Enter Song,Artist name" />
+      <button id="searchBtn" class="btn">Search</button>
+    </div>
+
+    <div id="status"></div>
+
+    <section id="results" class="results">
+      <div class="empty" id="empty">Search results</div>
+    </section>
+<div id="player">
+</div>
+
+<h3>🎶 Saved Songs</h3>
+<ul id="savedList"></ul>
+
+    <div id="player">
+      
+    </div>
+  </div>
+
+<script>
+const YT_API_KEY = 'AIzaSyCq-bd6sUmXKFOFvdUY3hDCklq3A8BtpD4';
+const queryInput = document.getElementById('query');
+const searchBtn = document.getElementById('searchBtn');
+const resultsEl = document.getElementById('results');
+const statusEl = document.getElementById('status');
+const emptyEl = document.getElementById('empty');
+const playerEl = document.getElementById('player');
+const savedListEl = document.getElementById('savedList');
+
+function setStatus(msg){ statusEl.innerHTML = msg || '' }
+
+function saveSong(title, videoId){
+  let songs = JSON.parse(localStorage.getItem("savedSongs")) || [];
+  if(!songs.find(s => s.id === videoId)){
+    songs.push({ title: title, id: videoId });
+    localStorage.setItem("savedSongs", JSON.stringify(songs));
+    loadSavedSongs();
+    console.log("✅ Song saved:", title);
+  }
+}
+
+function loadSavedSongs(){
+  let songs = JSON.parse(localStorage.getItem("savedSongs")) || [];
+  savedListEl.innerHTML = '';
+  if(songs.length === 0){
+    savedListEl.innerHTML = '<li>No saved songs</li>';
+    return;
+  }
+  songs.forEach(song => {
+    let li = document.createElement('li');
+    li.textContent = song.title + ' ';
+
+    let playBtn = document.createElement('button');
+    playBtn.textContent = '▶ Play';
+    playBtn.onclick = () => playVideo(song.id, song.title);
+
+    li.appendChild(playBtn);
+    savedListEl.appendChild(li);
+  });
+}
+
+function makeCard(item){
+  const card = document.createElement('article');
+  card.className = 'card';
+  card.setAttribute('data-vid', item.id.videoId); // important for save
+
+  const thumb = document.createElement('div'); thumb.className='thumb';
+  const img = document.createElement('img'); img.src = item.snippet.thumbnails.medium.url;
+  thumb.appendChild(img);
+
+  const meta = document.createElement('div'); meta.className='meta';
+  const title = document.createElement('h3'); title.className='title'; title.textContent = item.snippet.title;
+  const sub = document.createElement('div'); sub.className='sub'; sub.innerHTML = `${item.snippet.channelTitle} • ${new Date(item.snippet.publishedAt).getFullYear()}`;
+  meta.appendChild(title); meta.appendChild(sub);
+
+  const controls = document.createElement('div');
+  const play = document.createElement('button'); play.className='playbtn'; play.textContent='Play';
+  play.onclick = ()=> playVideo(item.id.videoId, item.snippet.title);
+  controls.appendChild(play);
+
+  card.appendChild(thumb); card.appendChild(meta); card.appendChild(controls);
+  return card;
+}
+
+function playVideo(videoId, title){
+  playerEl.style.display = 'block';
+  playerEl.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+  playerEl.scrollIntoView({behavior:'smooth'});
+
+  
+  if(title && videoId){
+    saveSong(title, videoId);
+  }
+}
+
+async function ytSearchSingle(term, maxResults=12){
+  const params = new URLSearchParams({
+    key: YT_API_KEY,
+    q: term,
+    part: 'snippet',
+    type: 'video',
+    videoCategoryId: '10',
+    regionCode: 'IN',
+    maxResults: String(maxResults)
+  });
+  const url = `https://www.googleapis.com/youtube/v3/search?${params.toString()}`;
+  const res = await fetch(url);
+  if(!res.ok){
+    const txt = await res.text();
+    throw new Error('YT API error: ' + res.status + ' — ' + txt);
+  }
+  const data = await res.json();
+  return data.items || [];
+}
+
+function mergeUniqueByVideoId(arr){
+  const map = new Map();
+  arr.forEach(item => { if(item && item.id && item.id.videoId){ map.set(item.id.videoId, item) }});
+  return Array.from(map.values());
+}
+
+async function search(term){
+  if(!term || !term.trim()) return;
+  resultsEl.innerHTML = '';
+  emptyEl.style.display = 'none';
+  setStatus('Searching...');
+
+  try{
+    let items = await ytSearchSingle(term, 12);
+    if(!items || items.length < 6){
+      const words = term.split(/\s+/).filter(Boolean);
+      const promises = [];
+      for(const w of words.slice(0,4)){ promises.push(ytSearchSingle(w, 6)); }
+      const parts = await Promise.all(promises);
+      const merged = [].concat(...parts);
+      items = items.concat(merged);
+    }
+    items = mergeUniqueByVideoId(items).slice(0,30);
+
+    setStatus('');
+    if(!items || items.length===0){
+      resultsEl.innerHTML = '<div class="empty">Koi result nahi mila. Alag keywords try karo.</div>';
+      return;
+    }
+    items.forEach(it => { resultsEl.appendChild(makeCard(it)); });
+
+  }catch(err){
+    console.error(err);
+    if(err.message && err.message.includes('403')){
+      setStatus('API quota/permission error. Check your API key and YouTube Data API v3 is enabled.');
+    } else if(err.message && err.message.includes('YT API error')){
+      setStatus('YouTube API returned an error — see console. Possible invalid key or quota exceeded.');
+    } else {
+      setStatus('Error fetching results — check your internet connection and API key in the code.');
+    }
+    resultsEl.innerHTML = '<div class="empty">Error while searching. Check console for details.</div>';
+  }
+}
+
+queryInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') search(queryInput.value) });
+searchBtn.addEventListener('click', ()=> search(queryInput.value));
+queryInput.focus();
+
+
+window.onload = loadSavedSongs;
+
+function playSong(videoId, title){
+  let saved = localStorage.getItem("offlineSongs") || {};
+  
+  if(saved[videoId]){
+  
+    let audio = new Audio(saved[videoId].blobUrl);
+    audio.play();
+  } else {
+
+    openYouTubeIframe(videoId);
+    
+    
+    fetchAudioBlob(videoId).then(blobUrl => {
+      saved[videoId] = { title, blobUrl };
+      localStorage.setItem("offlineSongs", JSON.stringify(saved));
+    });
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Responsive Music Player</title>
+  <style>
+    :root{--bg:#0b1220;--card:#0f1a2b;--muted:#9fb0c8;--accent:#1db954;--glass: rgba(255,255,255,0.04)}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,'Noto Sans',sans-serif;background:linear-gradient(180deg,#061022 0%, #081426 60%);color:#dbeafe;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+    .app{width:100%;max-width:980px}
+
+    header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+    header .logo{width:56px;height:56px;border-radius:10px;background:linear-gradient(135deg,#122535,#0b5a36);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;color:#fff;box-shadow:0 6px 20px rgba(4,9,20,0.6)}
+    header .title{font-size:20px;font-weight:600}
+
+    .grid{display:grid;grid-template-columns:1fr 360px;gap:18px}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+
+    .panel{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 30px rgba(2,6,12,0.6)}
+    .playlist{margin-top:14px;display:flex;flex-direction:column;gap:10px;max-height:58vh;overflow:auto;padding-right:6px}
+    .track{display:flex;gap:12px;align-items:center;padding:10px;border-radius:8px;background:linear-gradient(180deg, rgba(255,255,255,0.015), transparent);cursor:pointer}
+    .track .title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .track .small{font-size:13px;color:var(--muted);margin-top:4px}
+
+    .now{display:flex;flex-direction:column;gap:12px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:16px;border-radius:10px}
+    .now .cover{height:160px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 30% 20%, rgba(255,255,255,0.02), transparent);font-weight:700;font-size:50px}
+    .now .bigtitle{font-size:18px;font-weight:700}
+    .meta-row{display:flex;justify-content:space-between;color:var(--muted);font-size:13px;margin-top:4px}
+
+    .controls{display:flex;gap:12px;align-items:center;margin-top:10px}
+    .btn{padding:8px 12px;border-radius:8px;background:var(--glass);border:1px solid rgba(255,255,255,0.03);cursor:pointer;font-weight:600}
+
+    .playlist::-webkit-scrollbar{width:8px}
+    .playlist::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.04);border-radius:6px}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="logo">
+        <img src="icon.png" class="logo">
+      </div>
+      <div>
+        <div class="title">Swarify</div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="panel">
+        <div class="playlist" id="playlist" aria-live="polite"></div>
+      </div>
+
+      <aside class="now">
+        <div class="card">
+          <div class="cover" id="cover">🎵</div>
+          <div class="bigtitle" id="nowTitle">Select a song</div>
+          <div class="meta-row">
+            <div id="nowArtist">—</div>
+            <div id="nowTime">00:00</div>
+          </div>
+          <div class="controls">
+            <button class="btn" id="prevBtn">Prev</button>
+            <button class="btn" id="playPauseBtn">Play</button>
+            <button class="btn" id="nextBtn">Next</button>
+          </div>
+          <input type="range" id="seekBar" min="0" value="0" style="width:100%;margin-top:10px">
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const songs = [
+      {name:'Song 1', artist:'Artist 1', file:'sample1.mp3'},
+      {name:'Song 2', artist:'Artist 2', file:'sample2.mp3'},
+      {name:'Song 3', artist:'Artist 3', file:'sample3.mp3'}
+    ];
+
+    const playlistEl = document.getElementById('playlist');
+    const nowTitle = document.getElementById('nowTitle');
+    const nowArtist = document.getElementById('nowArtist');
+    const nowTime = document.getElementById('nowTime');
+    const cover = document.getElementById('cover');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const seekBar = document.getElementById('seekBar');
+
+    let currentIndex = 0;
+    let audio = new Audio();
+
+    function loadSong(index){
+      const song = songs[index];
+      audio.src = song.file;
+      nowTitle.textContent = song.name;
+      nowArtist.textContent = song.artist;
+      cover.textContent = '🎧';
+      audio.load();
+      playSong();
+    }
+
+    function playSong(){
+      audio.play();
+      playPauseBtn.textContent = 'Pause';
+    }
+
+    function pauseSong(){
+      audio.pause();
+      playPauseBtn.textContent = 'Play';
+    }
+
+    playPauseBtn.addEventListener('click', ()=>{
+      if(audio.paused) playSong();
+      else pauseSong();
+    });
+
+    prevBtn.addEventListener('click', ()=>{
+      currentIndex = (currentIndex-1 + songs.length)%songs.length;
+      loadSong(currentIndex);
+    });
+
+    nextBtn.addEventListener('click', ()=>{
+      currentIndex = (currentIndex+1)%songs.length;
+      loadSong(currentIndex);
+    });
+
+    audio.addEventListener('timeupdate', ()=>{
+      seekBar.max = audio.duration;
+      seekBar.value = audio.currentTime;
+      nowTime.textContent = formatTime(audio.currentTime) + ' / ' + formatTime(audio.duration);
+    });
+
+    seekBar.addEventListener('input', ()=>{
+      audio.currentTime = seekBar.value;
+    });
+
+    function formatTime(s){
+      if(isNaN(s)) return '00:00';
+      const m = Math.floor(s/60); const sec = Math.floor(s%60);
+      return String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+    }
+
+    function renderPlaylist(){
+      playlistEl.innerHTML = '';
+      songs.forEach((song, i)=>{
+        const track = document.createElement('div');
+        track.className = 'track';
+        track.innerHTML = `<div class='title'>${song.name}</div><div class='small'>${song.artist}</div>`;
+        track.addEventListener('click', ()=>{
+          currentIndex = i;
+          loadSong(currentIndex);
+        });
+        playlistEl.appendChild(track);
+      });
+    }
+
+    renderPlaylist();
+    loadSong(currentIndex);
+  </script>
+</body>
+</html>
